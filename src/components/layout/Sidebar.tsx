@@ -9,8 +9,6 @@ import {
   Plus,
   ChevronDown,
   ChevronRight,
-  Wifi,
-  WifiOff,
   Send,
   LayoutDashboard,
   X,
@@ -98,21 +96,14 @@ export default function Sidebar({ activePage, onNavigate }: SidebarProps) {
                     <div className="w-7 h-7 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-xs font-bold">
                       {account.name.charAt(0).toUpperCase()}
                     </div>
-                    <span
-                      className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-gray-900 ${
-                        account.loginStatus === 'connected' ? 'bg-green-400' : 'bg-gray-500'
-                      }`}
-                    />
+                    {activeAccountId === account.id && (
+                      <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-gray-900 bg-blue-400" />
+                    )}
                   </div>
                   <div className="flex-1 text-left min-w-0">
                     <p className="truncate font-medium text-xs">{account.name}</p>
                     <p className="truncate text-xs text-gray-500">{account.phone}</p>
                   </div>
-                  {account.loginStatus === 'connected' ? (
-                    <Wifi size={12} className="text-green-400 flex-shrink-0" />
-                  ) : (
-                    <WifiOff size={12} className="text-gray-500 flex-shrink-0" />
-                  )}
                 </button>
               ))}
 

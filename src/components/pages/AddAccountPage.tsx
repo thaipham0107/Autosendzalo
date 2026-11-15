@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useAppStore } from '@/store/appStore'
-import { Phone, User, ArrowLeft, Shield, Eye, EyeOff, Smartphone } from 'lucide-react'
+import { Phone, User, ArrowLeft, Info } from 'lucide-react'
 
 interface AddAccountPageProps {
   onBack: () => void
@@ -11,22 +11,14 @@ interface AddAccountPageProps {
 
 export default function AddAccountPage({ onBack, onSuccess }: AddAccountPageProps) {
   const { addAccount, setActiveAccount } = useAppStore()
-  const [step, setStep] = useState<'info' | 'qr' | 'phone'>('info')
   const [phone, setPhone] = useState('')
   const [name, setName] = useState('')
-  const [loginMethod, setLoginMethod] = useState<'qr' | 'phone'>('qr')
-  const [loading, setLoading] = useState(false)
 
   const handleAddAccount = () => {
     if (!phone || !name) return
-    setLoading(true)
-
-    setTimeout(() => {
-      const account = addAccount(phone, name)
-      setActiveAccount(account.id)
-      setLoading(false)
-      onSuccess()
-    }, 1000)
+    const account = addAccount(phone, name)
+    setActiveAccount(account.id)
+    onSuccess()
   }
 
   return (
@@ -39,17 +31,19 @@ export default function AddAccountPage({ onBack, onSuccess }: AddAccountPageProp
           <ArrowLeft size={16} />
           Quay lại
         </button>
-        <h1 className="text-2xl font-bold text-gray-900">Thêm tài khoản Zalo</h1>
-        <p className="text-gray-500 mt-1">Đăng nhập để quản lý gửi tin nhắn</p>
+        <h1 className="text-2xl font-bold text-gray-900">Thêm hồ sơ tài khoản</h1>
+        <p className="text-gray-500 mt-1">Tạo hồ sơ để tổ chức khách hàng & chiến dịch</p>
       </div>
 
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 flex gap-3">
-        <Shield size={20} className="text-blue-500 flex-shrink-0 mt-0.5" />
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 flex gap-3">
+        <Info size={20} className="text-amber-500 flex-shrink-0 mt-0.5" />
         <div>
-          <p className="text-sm font-medium text-blue-800">Bảo mật tài khoản</p>
-          <p className="text-sm text-blue-600 mt-0.5">
-            Mật khẩu của bạn <strong>không được lưu trữ</strong>. Chỉ lưu thông tin tài khoản cơ bản
-            để hiển thị và quản lý.
+          <p className="text-sm font-medium text-amber-800">Đây KHÔNG phải đăng nhập Zalo</p>
+          <p className="text-sm text-amber-700 mt-0.5">
+            Ứng dụng <strong>không kết nối trực tiếp với Zalo</strong> và không đăng nhập tài khoản
+            của bạn. Mục này chỉ tạo một <strong>hồ sơ cục bộ</strong> (tên + số điện thoại) để bạn
+            tổ chức danh sách bạn bè, nhóm khách hàng và soạn nội dung chiến dịch. Danh sách bạn bè
+            cần được <strong>thêm thủ công hoặc nhập từ file</strong>.
           </p>
         </div>
       </div>
@@ -65,7 +59,7 @@ export default function AddAccountPage({ onBack, onSuccess }: AddAccountPageProp
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Nhập tên hiển thị cho tài khoản"
+              placeholder="VD: Zalo bán hàng, Zalo CSKH..."
               className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
@@ -85,76 +79,17 @@ export default function AddAccountPage({ onBack, onSuccess }: AddAccountPageProp
               className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
+          <p className="text-xs text-gray-400 mt-1.5">
+            Chỉ dùng để nhận diện hồ sơ. Không có mật khẩu, không có đăng nhập.
+          </p>
         </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Phương thức đăng nhập
-          </label>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => setLoginMethod('qr')}
-              className={`p-3 rounded-lg border-2 text-left transition-colors ${
-                loginMethod === 'qr'
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-200 hover:border-gray-300'
-              }`}
-            >
-              <div className="text-lg mb-1">📱</div>
-              <div className="text-sm font-medium">Quét mã QR</div>
-              <div className="text-xs text-gray-500 mt-0.5">Dùng app Zalo quét</div>
-            </button>
-            <button
-              onClick={() => setLoginMethod('phone')}
-              className={`p-3 rounded-lg border-2 text-left transition-colors ${
-                loginMethod === 'phone'
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-200 hover:border-gray-300'
-              }`}
-            >
-              <Smartphone size={18} className="mb-1 text-gray-600" />
-              <div className="text-sm font-medium">Số điện thoại</div>
-              <div className="text-xs text-gray-500 mt-0.5">Nhập OTP xác thực</div>
-            </button>
-          </div>
-        </div>
-
-        {loginMethod === 'qr' && (
-          <div className="bg-gray-50 rounded-lg p-4 text-center">
-            <div className="w-40 h-40 bg-white border-2 border-gray-200 rounded-lg mx-auto flex items-center justify-center mb-3">
-              <div className="text-gray-400 text-xs text-center">
-                <div className="text-3xl mb-2">⬜</div>
-                <p>Mã QR sẽ hiển thị</p>
-                <p>sau khi kết nối</p>
-              </div>
-            </div>
-            <p className="text-xs text-gray-500">
-              Mở app Zalo → Cài đặt → Thiết bị đã đăng nhập → Thêm thiết bị
-            </p>
-          </div>
-        )}
-
-        {loginMethod === 'phone' && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-            <p className="text-sm text-yellow-700">
-              Nhập số điện thoại ở trên và nhấn "Thêm tài khoản" để nhận mã OTP xác thực.
-            </p>
-          </div>
-        )}
 
         <button
           onClick={handleAddAccount}
-          disabled={!phone || !name || loading}
-          className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+          disabled={!phone || !name}
+          className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
         >
-          {loading ? (
-            <>
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              Đang xử lý...
-            </>
-          ) : (
-            'Thêm tài khoản'
-          )}
+          Tạo hồ sơ
         </button>
       </div>
     </div>

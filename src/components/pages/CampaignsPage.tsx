@@ -13,9 +13,10 @@ import {
   Users,
   CheckCircle,
   XCircle,
-  ChevronRight,
   Trash2,
   Eye,
+  Copy,
+  ExternalLink,
 } from 'lucide-react'
 import type { Campaign } from '@/lib/types'
 
@@ -129,6 +130,24 @@ export default function CampaignsPage() {
     updateCampaign(campaign.id, { status: 'completed', completedAt: new Date().toISOString() })
   }
 
+  // Manually mark one recipient as sent (honest manual-send flow)
+  const handleMarkSent = (campaign: Campaign, logId: string) => {
+    const { sendLogs: allLogs } = useAppStore.getState()
+    const log = allLogs.find((l) => l.id === logId)
+    if (!log || log.status !== 'pending') return
+    updateSendLog(logId, { status: 'sent', sentAt: new Date().toISOString() })
+    const remaining = allLogs.filter(
+      (l) => l.campaignId === campaign.id && l.status === 'pending' && l.id !== logId
+    )
+    updateCampaign(campaign.id, {
+      sentCount: campaign.sentCount + 1,
+      startedAt: campaign.startedAt || new Date().toISOString(),
+      ...(remaining.length === 0
+        ? { status: 'completed', completedAt: new Date().toISOString() }
+        : { status: campaign.status === 'draft' ? 'running' : campaign.status }),
+    })
+  }
+
   useEffect(() => {
     return () => {
       if (runnerRef.current) clearTimeout(runnerRef.current)
@@ -144,6 +163,26 @@ export default function CampaignsPage() {
       runnerRef.current = setTimeout(() => runNextSend(running.id), running.intervalSeconds * 1000)
     }
   }, [activeAccountId])
+
+  // When opening a campaign detail, build the recipient list for manual sending
+  useEffect(() => {
+    if (view !== 'detail' || !selectedCampaign) return
+    if (getLogsByCampaign(selectedCampaign.id).length > 0) return
+    const group = groups.find((g) => g.id === selectedCampaign.groupId)
+    if (!group) return
+    for (const friendId of group.memberIds) {
+      const friend = friends.find((f) => f.id === friendId)
+      if (friend) {
+        addSendLog({
+          campaignId: selectedCampaign.id,
+          friendId,
+          friendName: friend.name,
+          status: 'pending',
+        })
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, selectedCampaignId])
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
@@ -208,6 +247,7 @@ export default function CampaignsPage() {
       onStart={() => handleStartCampaign(selectedCampaign)}
       onPause={() => handlePauseCampaign(selectedCampaign)}
       onStop={() => handleStopCampaign(selectedCampaign)}
+      onMarkSent={(logId: string) => handleMarkSent(selectedCampaign, logId)}
     />
   }
 
@@ -225,6 +265,12 @@ export default function CampaignsPage() {
           <Plus size={15} />
           Tạo chiến dịch
         </button>
+      </div>
+
+      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700">
+        <strong>Lưu ý:</strong> App không tự động gửi tin Zalo. Đây là công cụ soạn nội dung và
+        <strong> hỗ trợ gửi tay</strong>: mở chi tiết chiến dịch để copy nội dung từng người, gửi
+        trong Zalo rồi đánh dấu đã gửi. Bộ đếm "Bắt đầu" chỉ mô phỏng tiến độ theo giãn cách.
       </div>
 
       {accountCampaigns.length === 0 ? (
@@ -514,7 +560,7 @@ function CreateCampaignForm({
   )
 }
 
-function CampaignDetail({ campaign, logs, groups, onBack, onStart, onPause, onStop }: any) {
+function CampaignDetail({ campaign, logs, groups, onBack, onStart, onPause, onStop, onMarkSent }: any) {
   const group = groups.find((g: any) => g.id === campaign.groupId)
   const sentLogs = logs.filter((l: any) => l.status === 'sent')
   const pendingLogs = logs.filter((l: any) => l.status === 'pending')
@@ -522,6 +568,17 @@ function CampaignDetail({ campaign, logs, groups, onBack, onStart, onPause, onSt
   const progress = campaign.totalRecipients > 0
     ? Math.round((campaign.sentCount / campaign.totalRecipients) * 100)
     : 0
+
+  const [copied, setCopied] = useState(false)
+  const copyContent = async () => {
+    try {
+      await navigator.clipboard.writeText(campaign.content)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      setCopied(false)
+    }
+  }
 
   return (
     <div className="space-y-5 max-w-2xl">
@@ -542,7 +599,7 @@ function CampaignDetail({ campaign, logs, groups, onBack, onStart, onPause, onSt
               className="flex items-center gap-1.5 px-3 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700"
             >
               <Play size={14} />
-              {campaign.status === 'paused' ? 'Tiếp tục' : 'Bắt đầu'}
+              {campaign.status === 'paused' ? 'Tiếp tục' : 'Tự đánh dấu'}
             </button>
           )}
           {campaign.status === 'running' && (
@@ -627,6 +684,35 @@ function CampaignDetail({ campaign, logs, groups, onBack, onStart, onPause, onSt
         </p>
       </div>
 
+      {/* Manual send helper */}
+      <div className="bg-white border border-gray-200 rounded-xl p-4">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+          Gửi tay
+        </p>
+        <p className="text-sm text-gray-600 mb-3">
+          Copy nội dung, mở Zalo và gửi cho từng người, sau đó bấm "Đã gửi" bên dưới để theo dõi.
+          {campaign.images.length > 0 && ' Ảnh cần tự đính kèm trong Zalo.'}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={copyContent}
+            className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
+          >
+            <Copy size={14} />
+            {copied ? 'Đã copy!' : 'Copy nội dung'}
+          </button>
+          <a
+            href="https://chat.zalo.me/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50"
+          >
+            <ExternalLink size={14} />
+            Mở Zalo
+          </a>
+        </div>
+      </div>
+
       {/* Send log */}
       {logs.length > 0 && (
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
@@ -654,7 +740,12 @@ function CampaignDetail({ campaign, logs, groups, onBack, onStart, onPause, onSt
                       {new Date(log.sentAt).toLocaleTimeString('vi-VN')}
                     </span>
                   ) : log.status === 'pending' ? (
-                    <span className="text-xs text-gray-400">Chờ gửi</span>
+                    <button
+                      onClick={() => onMarkSent(log.id)}
+                      className="text-xs px-2 py-1 bg-green-50 text-green-600 border border-green-200 rounded hover:bg-green-100 transition-colors"
+                    >
+                      Đã gửi
+                    </button>
                   ) : (
                     <span className="text-xs text-red-400">{log.error || 'Lỗi'}</span>
                   )}

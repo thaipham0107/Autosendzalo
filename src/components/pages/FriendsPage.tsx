@@ -76,6 +76,13 @@ export default function FriendsPage() {
         </div>
       </div>
 
+      {friends.length === 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700">
+          Danh sách bạn bè <strong>không tự đồng bộ từ Zalo</strong>. Hãy nhập tên khách hàng/bạn bè
+          thủ công hoặc dùng "Nhập hàng loạt" để dán danh sách từ file Excel/CSV.
+        </div>
+      )}
+
       {/* Search */}
       <div className="relative">
         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />

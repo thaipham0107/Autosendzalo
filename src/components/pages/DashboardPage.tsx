@@ -42,6 +42,16 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
 
   return (
     <div className="space-y-6">
+      {/* Honesty notice */}
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3">
+        <AlertCircle size={18} className="text-amber-500 flex-shrink-0 mt-0.5" />
+        <p className="text-sm text-amber-700">
+          Ứng dụng <strong>không kết nối trực tiếp với Zalo</strong>. Danh sách bạn bè không tự đồng
+          bộ — bạn cần <strong>thêm thủ công hoặc nhập từ file</strong>. Chiến dịch là công cụ
+          <strong> soạn nội dung & hỗ trợ gửi tay</strong> theo giãn cách, không tự động gửi tin.
+        </p>
+      </div>
+
       {/* Account header */}
       <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl p-5 text-white">
         <div className="flex items-center gap-4">
@@ -53,12 +63,8 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
             <p className="text-blue-200 text-sm">{activeAccount?.phone}</p>
           </div>
           <div className="ml-auto">
-            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-              activeAccount?.loginStatus === 'connected'
-                ? 'bg-green-400/20 text-green-200'
-                : 'bg-gray-400/20 text-gray-200'
-            }`}>
-              {activeAccount?.loginStatus === 'connected' ? '● Đã kết nối' : '○ Ngắt kết nối'}
+            <span className="px-3 py-1 rounded-full text-xs font-medium bg-white/15 text-blue-100">
+              Hồ sơ cục bộ
             </span>
           </div>
         </div>
