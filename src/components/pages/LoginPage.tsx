@@ -7,14 +7,35 @@ interface LoginPageProps {
   onLogin: () => void
 }
 
+// PBKDF2 parameters — 100k iterations makes offline brute-force ~100,000× slower
+// than plain SHA-256. Salt binds the hash to this app + username so cross-app
+// rainbow tables don't apply.
+const APP_SALT = 'asz-v1-static-salt'
+const PBKDF2_ITERATIONS = 100_000
+
+// username → sha256(username) : PBKDF2(password, APP_SALT+':'+username, 100k)
+// Generated server-side; never the plaintext.
 const CREDENTIALS: Record<string, string> = {
   'c4c08d28811434162774856e0a38fccb184556d187c35e17dcbb0454e6e2e8aa':
-    '7f4b675467950e4d4b752d427c1fdb24bb97682ace8a8f61f7006dbac2f34d6d',
+    '5c669c30b8525726b0dc2ebb124f49a722d7bd55a78c8089b29467f1be81ab02',
 }
 
 async function sha256(text: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+async function pbkdf2Hash(password: string, username: string): Promise<string> {
+  const enc = new TextEncoder()
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw', enc.encode(password), 'PBKDF2', false, ['deriveBits']
+  )
+  const salt = enc.encode(`${APP_SALT}:${username}`)
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', hash: 'SHA-256', salt, iterations: PBKDF2_ITERATIONS },
+    keyMaterial, 256
+  )
+  return [...new Uint8Array(bits)].map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
 export default function LoginPage({ onLogin }: LoginPageProps) {
@@ -30,18 +51,35 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
     setLoading(true)
     setError('')
 
-    const userHash = await sha256(username.trim().toLowerCase())
-    const passHash = await sha256(password)
+    try {
+      // Require HTTPS / secure context for Web Crypto
+      if (!crypto?.subtle) {
+        setError('Trình duyệt không hỗ trợ. Vui lòng dùng HTTPS.')
+        return
+      }
+      const user = username.trim().toLowerCase()
+      const userHash = await sha256(user)
+      const storedPassHash = CREDENTIALS[userHash]
 
-    if (CREDENTIALS[userHash] === passHash) {
-      try {
-        sessionStorage.setItem('asz_auth', '1')
-      } catch {}
-      onLogin()
-    } else {
-      setError('Tên đăng nhập hoặc mật khẩu không đúng')
+      if (!storedPassHash) {
+        // Constant-time-ish: still run derivation to avoid timing oracle on username
+        await pbkdf2Hash(password, user)
+        setError('Tên đăng nhập hoặc mật khẩu không đúng')
+        return
+      }
+
+      const passHash = await pbkdf2Hash(password, user)
+      if (passHash === storedPassHash) {
+        try { sessionStorage.setItem('asz_auth', '1') } catch {}
+        onLogin()
+      } else {
+        setError('Tên đăng nhập hoặc mật khẩu không đúng')
+      }
+    } catch {
+      setError('Đã xảy ra lỗi, vui lòng thử lại.')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   return (
@@ -89,6 +127,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                 type="button"
                 onClick={() => setShowPass(!showPass)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200"
+                aria-label={showPass ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
               >
                 {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
@@ -96,7 +135,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
           </div>
 
           {error && (
-            <p className="text-red-400 text-sm flex items-center gap-1.5">
+            <p className="text-red-400 text-sm flex items-center gap-1.5" role="alert">
               <Lock size={13} /> {error}
             </p>
           )}
@@ -107,7 +146,10 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
             className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-medium rounded-lg text-sm transition-colors flex items-center justify-center gap-2"
           >
             {loading ? (
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Đang xác thực...
+              </>
             ) : (
               'Đăng nhập'
             )}

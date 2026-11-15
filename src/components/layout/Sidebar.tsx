@@ -222,11 +222,13 @@ export default function Sidebar({ activePage, onNavigate }: SidebarProps) {
         />
       )}
 
-      {/* Mobile drawer */}
+      {/* Mobile drawer — aria-hidden + inert when closed keeps it out of tab order */}
       <div
         className={`md:hidden fixed top-0 left-0 h-full w-72 bg-gray-900 text-white flex flex-col z-50 transform transition-transform duration-200 ${
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
+        aria-hidden={!mobileOpen}
+        inert={!mobileOpen || undefined}
       >
         {sidebarContent}
       </div>
